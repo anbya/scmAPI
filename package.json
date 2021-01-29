@@ -4,7 +4,7 @@
   "description": "ini adalah api scm jaygeegroup",
   "main": "server.js",
   "scripts": {
-    "start": "node server",
+    "start": "nodemon server",
     "dev": "nodemon server"
   },
   "author": "anbya army ali",
