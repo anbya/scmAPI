@@ -146,7 +146,6 @@ const {
 
 } = require("../controllers/centralkitchen");
 
-const upload = require("../config/multer");
 // controller login
 router.post("/login", login);
 // controller login--
