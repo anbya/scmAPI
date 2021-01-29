@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3009
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded());
+app.use(bodyParser.urlencoded({extended:false}));
 
 app.get("/", function(req,res){
     res.send(`Hello World dari JAYGEEGROUP SCM API`);
