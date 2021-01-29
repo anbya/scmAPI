@@ -1,10 +1,10 @@
 {
   "name": "scmapi",
   "version": "1.0.0",
-  "description": "ini api mysql transdeal",
-  "main": "index.js",
+  "description": "ini adalah api scm jaygeegroup",
+  "main": "server.js",
   "scripts": {
-    "start": "nodemon server",
+    "start": "node server",
     "dev": "nodemon server"
   },
   "author": "anbya army ali",

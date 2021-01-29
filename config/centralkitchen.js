@@ -1,9 +1,9 @@
 const mysql = require("mysql");
 const connection = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'central_kitchen',
+  host: process.env.HOST,
+  user: process.env.USER,
+  password: process.env.PASSWORD,
+  database: process.env.DATABASE,
   multipleStatements: true
 });
 

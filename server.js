@@ -8,14 +8,14 @@ const moment = require('moment-timezone')
 
 const Centralkitchen = require("./routes/centralkitchen")
 
-const PORT = 3009
+const PORT = process.env.PORT || 3009
 
 app.use(cors());
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({limit: '50mb',extended:false}));
 
 app.get("/", function(req,res){
-    res.send(`Hello World dari armyali.com API ${process.env.TEST} on port:${PORT}`);
+    res.send(`Hello World dari JAYGEEGROUP SCM API`);
 })
 app.use("/centralkitchen", Centralkitchen);
 
