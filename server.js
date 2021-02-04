@@ -21,7 +21,7 @@ app.get("/", function(req,res){
 app.use("/centralkitchen", Centralkitchen);
 
 app.get("/testinsert", function(req,res){
-    res.send(`Hello World dari JAYGEEGROUP SCM API`);
+    res.send(`Hello World dari SCM API JAYGEEGROUP`);
 })
 
 app.listen(PORT, () => {
