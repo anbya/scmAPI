@@ -1,40 +1,45 @@
 const connection = require("../config/centralkitchen")
+const oauthConnection = require("../config/oauth")
 const bcrypt = require("bcryptjs")
-const moment = require('moment')
+const moment = require('moment-timezone')
 
 module.exports = {
     // controller login
         login:(req,res) =>{
-            connection.query(`
-            SELECT
-            x.id_user,
-            x.nik,
-            x.pass_user
-            FROM user as x
-            WHERE nik = "${req.body.NIK}"`,(error,result,field)=> {
+            oauthConnection.query(`SELECT * FROM prm_karyawan WHERE NIK = "${req.body.NIK}"`,(error,result,field)=> {
                 if (error){
                     res.status(400).send({
                         error
                     });
                 }
                 else{
-                    let dataLenght = result.length
-                    if(dataLenght>0){
-                        let passPrm = result[0].pass_user
-                        let passSend = req.body.PASS
-                        if(passPrm === passSend){
-                            res.status(200).send({
-                                status:"00",
-                                nik:result[0].nik
-                            });
+                    if(result.length >= 1){
+                        let tanggalLahir = result[0].Tanggal_Lahir.replace(/[\D]/g, "");
+                        let tanggalResign = result[0].tanggal_resign.replace(/[\D]/g, "");
+                        let curDate = moment().tz("Asia/Jakarta").format('YYYYMMDD')
+                        if( tanggalResign === '' || tanggalResign >= curDate){
+                            let passSend = req.body.PASS
+                            if(tanggalLahir === passSend){
+                                res.status(200).send({
+                                    status:"00",
+                                    nik:result[0].NIK
+                                });
+                            } else {
+                                res.status(200).send({
+                                    status:"03",
+                                    message:"Password salah"
+                                });
+                            }
                         } else {
                             res.status(200).send({
-                                status:"01"
+                                status:"02",
+                                message:"Karyawan yang bersangkutan sudah tidak aktif"
                             });
                         }
                     } else {
                         res.status(200).send({
-                            status:"02"
+                            status:"01",
+                            message:"Data karyawan tidak terdaftar di dalam sistem"
                         });
                     }
                 }
@@ -401,7 +406,7 @@ module.exports = {
     // controller dashboard outlet--
     // controler outlet
         dataOutlet:(req,res) =>{
-            connection.query(`SELECT * FROM outlet `,(error,result,field)=> {
+            connection.query(`SELECT * FROM outlet WHERE id_outlet != 'OUT0000001' `,(error,result,field)=> {
                 if (error){
                     res.status(400).send({
                         error
@@ -779,7 +784,7 @@ module.exports = {
                         ) as vendor_name,
                         x.type_barang
                         FROM master_barang as x
-                        WHERE x.type_barang = "WORK IN PROGRESS"`,(error2,result2,field2)=> {
+                        WHERE x.type_barang = "RAW MATERIAL"`,(error2,result2,field2)=> {
                         if (error2){
                             res.status(400).send({
                                 error2
@@ -942,10 +947,10 @@ module.exports = {
             });
         },
         addMasterProduksi: (req,res) =>{
-            let TANGGALMASTERPRODUKSI = moment().format('YYYY-MM-DD HH:mm:ss')
-            let firstPrm = moment().startOf('year').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('year').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
+            let TANGGALMASTERPRODUKSI = moment().tz("Asia/Jakarta").format('YYYY-MM-DD HH:mm:ss')
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('year').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('year').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
             connection.query(`
             SELECT COUNT(kode_master_produksi_h) AS total
             FROM master_produksi_h
@@ -1196,8 +1201,7 @@ module.exports = {
                         master_vendor.nama_vendor
                         FROM master_barang LEFT JOIN master_vendor ON master_barang.kode_vendor = master_vendor.kode_vendor WHERE master_barang.kode_barang = x.kode_barang
                         ) as vendor_name
-                        FROM master_barang as x
-                        WHERE x.type_barang = "FINISHED GOODS"`,(error2,result2,field2)=> {
+                        FROM master_barang as x`,(error2,result2,field2)=> {
                         if (error2){
                             res.status(400).send({
                                 error2
@@ -1225,10 +1229,10 @@ module.exports = {
             });
         },
         addMasterRawprosessing: (req,res) =>{
-            let TANGGALMASTERRAWPROSESSING = moment().format('YYYY-MM-DD HH:mm:ss')
-            let firstPrm = moment().startOf('year').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('year').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
+            let TANGGALMASTERRAWPROSESSING = moment().tz("Asia/Jakarta").format('YYYY-MM-DD HH:mm:ss')
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('year').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('year').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
             connection.query(`
             SELECT COUNT(kode_master_rawprosessing_h) AS total
             FROM master_rawprosessing_h
@@ -1336,10 +1340,10 @@ module.exports = {
             });
         },
         addFormRawProsessingPlan:(req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_raw_processing_h) AS total
             FROM raw_processing_h
@@ -1683,7 +1687,7 @@ module.exports = {
             });
         },
         rawProcessCompletion:(req,res) =>{
-            let TANGGALCOMPLETE = moment().format('YYYY-MM-DD HH:mm:ss')
+            let TANGGALCOMPLETE = moment().tz("Asia/Jakarta").format('YYYY-MM-DD HH:mm:ss')
             let dataFinishedGoods = req.body.FINISHEDGOODS
             let sqlFinishedGoods = "INSERT INTO master_inventory (kode_inventory,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty) VALUES ?";
             let dataArrayFinishedGoods = [];
@@ -1756,7 +1760,7 @@ module.exports = {
     // controler rawprosessing--
     // controler purchase order
         getPOData:(req,res) =>{
-            connection.query(`SELECT x.kode_purchase_order_h, x.nomor_po, x.tanggal_buat, x.tanggal_masuk_barang, x.kode_vendor, x.jumlah_pembelian, x.create_user, x.receive_user,(SELECT nama_vendor FROM master_vendor where kode_vendor = x.kode_vendor) as vendor_name  FROM purchase_order_h as x WHERE x.tanggal_masuk_barang != "-" ORDER BY x.tanggal_buat DESC `,(error,result,field)=> {
+            connection.query(`SELECT x.kode_purchase_order_h, x.nomor_po, x.taxParameter, x.tanggal_buat, x.tanggal_masuk_barang, x.kode_vendor, x.jumlah_pembelian, x.create_user, x.receive_user,(SELECT nama_vendor FROM master_vendor where kode_vendor = x.kode_vendor) as vendor_name  FROM purchase_order_h as x WHERE x.tanggal_masuk_barang != "-" ORDER BY x.tanggal_buat DESC `,(error,result,field)=> {
                 if (error){
                     res.status(400).send({
                         error
@@ -1766,7 +1770,18 @@ module.exports = {
                     let panjangArray1=result.length
                     let dataPOH=[]
                     for(i=0;i<panjangArray1;i++){
-                        let dataTopush1 = {kode_purchase_order_h:`${result[i].kode_purchase_order_h}`,nomor_po:`${result[i].nomor_po}`,tanggal_buat:`${result[i].tanggal_buat}`,tanggal_masuk_barang:`${result[i].tanggal_masuk_barang}`,kode_vendor:`${result[i].kode_vendor}`,nama_vendor:`${result[i].vendor_name}`,jumlah_pembelian:`${result[i].jumlah_pembelian}`,create_user:`${result[i].create_user}`,receive_user:`${result[i].receive_user}`}
+                        let dataTopush1 = {
+                            kode_purchase_order_h:`${result[i].kode_purchase_order_h}`,
+                            nomor_po:`${result[i].nomor_po}`,
+                            taxParameter:`${result[i].taxParameter}`,
+                            tanggal_buat:`${result[i].tanggal_buat}`,
+                            tanggal_masuk_barang:`${result[i].tanggal_masuk_barang}`,
+                            kode_vendor:`${result[i].kode_vendor}`,
+                            nama_vendor:`${result[i].vendor_name}`,
+                            jumlah_pembelian:`${result[i].jumlah_pembelian}`,
+                            create_user:`${result[i].create_user}`,
+                            receive_user:`${result[i].receive_user}`
+                        }
                         dataPOH.push(dataTopush1)
                     }
                     res.status(200).send({
@@ -1776,7 +1791,7 @@ module.exports = {
             });
         },
         getOpenPOData:(req,res) =>{
-            connection.query(`SELECT x.kode_purchase_order_h, x.nomor_po, x.tanggal_buat, x.tanggal_masuk_barang, x.kode_vendor, x.jumlah_pembelian, x.create_user, x.receive_user,(SELECT nama_vendor FROM master_vendor where kode_vendor = x.kode_vendor) as vendor_name  FROM purchase_order_h as x WHERE x.tanggal_masuk_barang = "" ORDER BY x.tanggal_buat DESC `,(error,result,field)=> {
+            connection.query(`SELECT x.kode_purchase_order_h, x.nomor_po, x.taxParameter, x.tanggal_buat, x.tanggal_masuk_barang, x.kode_vendor, x.jumlah_pembelian, x.create_user, x.receive_user,(SELECT nama_vendor FROM master_vendor where kode_vendor = x.kode_vendor) as vendor_name  FROM purchase_order_h as x WHERE x.tanggal_masuk_barang = "" ORDER BY x.tanggal_buat DESC `,(error,result,field)=> {
                 if (error){
                     res.status(400).send({
                         error
@@ -1786,7 +1801,18 @@ module.exports = {
                     let panjangArray1=result.length
                     let dataPOH=[]
                     for(i=0;i<panjangArray1;i++){
-                        let dataTopush1 = {kode_purchase_order_h:`${result[i].kode_purchase_order_h}`,nomor_po:`${result[i].nomor_po}`,tanggal_buat:`${result[i].tanggal_buat}`,tanggal_masuk_barang:`${result[i].tanggal_masuk_barang}`,kode_vendor:`${result[i].kode_vendor}`,nama_vendor:`${result[i].vendor_name}`,jumlah_pembelian:`${result[i].jumlah_pembelian}`,create_user:`${result[i].create_user}`,receive_user:`${result[i].receive_user}`}
+                        let dataTopush1 = {
+                            kode_purchase_order_h:`${result[i].kode_purchase_order_h}`,
+                            nomor_po:`${result[i].nomor_po}`,
+                            taxParameter:`${result[i].taxParameter}`,
+                            tanggal_buat:`${result[i].tanggal_buat}`,
+                            tanggal_masuk_barang:`${result[i].tanggal_masuk_barang}`,
+                            kode_vendor:`${result[i].kode_vendor}`,
+                            nama_vendor:`${result[i].vendor_name}`,
+                            jumlah_pembelian:`${result[i].jumlah_pembelian}`,
+                            create_user:`${result[i].create_user}`,
+                            receive_user:`${result[i].receive_user}`
+                        }
                         dataPOH.push(dataTopush1)
                     }
                     res.status(200).send({
@@ -1845,6 +1871,7 @@ module.exports = {
             SELECT
             x.kode_purchase_order_h,
             x.nomor_po,
+            x.taxParameter,
             x.tanggal_buat,
             x.tanggal_kirim,
             (SELECT nama_outlet FROM outlet where id_outlet = x.tujuan_pengiriman) as nama_outlet,
@@ -1872,6 +1899,7 @@ module.exports = {
                         let dataTopush1 = {
                             kode_purchase_order_h:`${result[i].kode_purchase_order_h}`,
                             nomor_po:`${result[i].nomor_po}`,
+                            taxParameter:`${result[i].taxParameter}`,
                             tanggal_buat:`${result[i].tanggal_buat}`,
                             tanggal_buat_to_show:`${moment(result[i].tanggal_buat).format("DD-MMMM-YYYY")}`,
                             tanggal_kirim:`${result[i].tanggal_kirim}`,
@@ -1936,20 +1964,20 @@ module.exports = {
     // controler purchase order--
     // controler terima purchase order
         receivePO: (req,res) =>{
-            const datePOin = moment().format("YYYY-MM-DD HH:mm:ss")
+            const datePOin = moment().tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss")
             let DataPOD = req.body.DATAPOD
             let Datalenght = parseInt(DataPOD.length)
             let sql = "INSERT INTO master_inventory (kode_inventory,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty) VALUES ?";
             let dataArray = [];
             for (ia=0;ia<Datalenght;ia++) {
-                let harga_persatuan = parseInt(DataPOD[ia].harga) / parseInt(DataPOD[ia].konversi_barang)
+                let harga_persatuan = req.body.PRMPAJAK == "YES" ? (DataPOD[ia].harga*1.1) / DataPOD[ia].konversi_barang : DataPOD[ia].harga / DataPOD[ia].konversi_barang
                 let dataToPush = [
                     ``,
                     `${DataPOD[ia].kode_barang}`,
                     `${datePOin}`,
                     `${req.body.KODEEPOH}`,
                     `PO`,
-                    `${Math.round(harga_persatuan)}`,
+                    `${harga_persatuan}`,
                     `${DataPOD[ia].qty_receive}`]
                 dataArray.push(dataToPush)
             }
@@ -2073,10 +2101,10 @@ module.exports = {
         },
         addFormPOData: (req,res) =>{
             let tanngalKirim = moment(req.body.TANGGALKIRIM).format('YYYY-MM-DD HH:mm:ss')
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_purchase_order_h) AS total
             FROM purchase_order_h
@@ -2094,7 +2122,7 @@ module.exports = {
                     let totalDatastring = totalData.toString()
                     let runData = totalDatastring.padStart(7, '0')
                     let automateNumber = "PO"+"/"+year+"/"+month+"/"+runData
-                    connection.query(`INSERT INTO purchase_order_h values("","${automateNumber}","${req.body.TANGGALPO}","${tanngalKirim}","${req.body.OUTLETCODE}","","${req.body.VENDORCODE}","${req.body.TOTALPURCHASE}","${req.body.USER}","")`,(error,result,field)=> {
+                    connection.query(`INSERT INTO purchase_order_h values("","${automateNumber}","${req.body.TANGGALPO}","${tanngalKirim}","${req.body.OUTLETCODE}","","${req.body.VENDORCODE}","${req.body.TOTALPURCHASE}","${req.body.USER}","","${req.body.PAJAK}")`,(error,result,field)=> {
                         if (error){
                             res.status(400).send({
                                 error
@@ -2202,10 +2230,10 @@ module.exports = {
             });
         },
         addFormOrderData: (req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_order_h) AS total
             FROM order_h
@@ -2424,10 +2452,13 @@ module.exports = {
                     });
                 }
                 else{
-                    const dateDOin = moment().format("YYYY-MM-DD HH:mm:ss")
+                    const dateDOin = moment().tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss")
                     let sql = "INSERT INTO master_inventory_outlet (kode_inventory_outlet,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty,id_outlet) VALUES ?";
                     let dataArray = [];
                     for (ia=0;ia<resultx.length;ia++) {
+                        let receivedetail =  req.body.RECEIVEDATA.filter(function(data) {
+                            return data.kode_barang == resultx[ia].kode_barang;
+                        });
                         let dataToPush = [
                             ``,
                             `${resultx[ia].kode_barang}`,
@@ -2435,10 +2466,10 @@ module.exports = {
                             `${req.body.IDDelivery}`,
                             `DELIVERYORDER`,
                             `${resultx[ia].cost}`,
-                            `${resultx[ia].qty}`,
+                            `${receivedetail[0].qty_receive}`,
                             `${req.body.PRMOUTLET}`
                         ]
-                        dataArray.push(dataToPush)
+                        parseInt(receivedetail[0].qty_receive) > 0 && dataArray.push(dataToPush)
                     }
                     connection.query(sql, [dataArray],(error1,result1,field1)=> {
                         if (error1){
@@ -2461,8 +2492,35 @@ module.exports = {
                                             });
                                         }
                                         else{
-                                            res.status(200).send({
-                                                status:"01"
+                                            let sql2 = "INSERT INTO master_inventory (kode_inventory,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty) VALUES ?";
+                                            let dataArray2 = [];
+                                            for (ia=0;ia<resultx.length;ia++) {
+                                                let rejectdetail =  req.body.RECEIVEDATA.filter(function(data) {
+                                                    return data.kode_barang == resultx[ia].kode_barang;
+                                                });
+                                                let rejectQty = parseInt(resultx[ia].qty) - parseInt(rejectdetail[0].qty_receive)
+                                                let dataToPush2 = [
+                                                    ``,
+                                                    `${resultx[ia].kode_barang}`,
+                                                    `${dateDOin}`,
+                                                    `${req.body.IDDelivery}`,
+                                                    `REJECTRECEIVE`,
+                                                    `${resultx[ia].cost}`,
+                                                    `${rejectQty}`
+                                                ]
+                                                parseInt(rejectQty) > 0 && dataArray2.push(dataToPush2)
+                                            }
+                                            connection.query(sql2, [dataArray2],(error4,result4,field4)=> {
+                                                if (error4){
+                                                    res.status(400).send({
+                                                        error4
+                                                    });
+                                                }
+                                                else{
+                                                    res.status(200).send({
+                                                        status:"01"
+                                                    });
+                                                }
                                             });
                                         }
                                     });
@@ -2514,8 +2572,6 @@ module.exports = {
                     SELECT 
                     x.kode_order_d,
                     x.kode_barang,
-                    x.qty_req,
-                    (SELECT nama_barang FROM master_barang where kode_barang = x.kode_barang) as nama_barang,
                     (
                         SELECT SUM(qty) as qty_in_stock 
                         FROM 
@@ -2523,15 +2579,12 @@ module.exports = {
                         where 
                         kode_barang = x.kode_barang 
                     ) as qty_in_inventory,
-                    (
-                        SELECT 
-                        satuan_barang 
-                        FROM 
-                        master_barang 
-                        where 
-                        kode_barang = x.kode_barang
-                    ) as satuan_barang,
+                    (SELECT nama_barang FROM master_barang where kode_barang = x.kode_barang) as nama_barang,
+                    (SELECT unit_barang FROM master_barang where kode_barang = x.kode_barang) as unit_barang,
+                    (SELECT satuan_barang FROM master_barang where kode_barang = x.kode_barang) as satuan_barang,
+                    (SELECT conversi_satuan FROM master_barang where kode_barang = x.kode_barang) as konversi_barang,
                     x.qty_send,
+                    x.qty_req,
                     x.kode_order_h 
                     FROM 
                     order_d as x 
@@ -2545,14 +2598,30 @@ module.exports = {
                             let panjangArray2=result1.length
                             let orderList=[]
                             for(i=0;i<panjangArray2;i++){
+                                // batas
+                                let qtyReq =parseInt(result1[i].qty_req)
+                                let convertionQtyReq =parseInt(result1[i].konversi_barang)
+                                let qtyReqProcessA = Math.floor(qtyReq/convertionQtyReq)
+                                let qtyReqProcessB = qtyReq%convertionQtyReq
+                                let qtyReqToShow = qtyReqProcessA+"."+qtyReqProcessB
+                                // batas
+                                let qtySend =parseInt(result1[i].qty_send)
+                                let convertionqtySend =parseInt(result1[i].konversi_barang)
+                                let qtySendProcessA = Math.floor(qtySend/convertionqtySend)
+                                let qtySendProcessB = qtySend%convertionqtySend
+                                let qtySendToShow = qtySendProcessA+"."+qtySendProcessB
+                                // batas
                                 let dataTopush2 = {
                                     kode_order_d:`${result1[i].kode_order_d}`,
                                     kode_barang:`${result1[i].kode_barang}`,
-                                    qty_req:`${result1[i].qty_req}`,
                                     nama_barang:`${result1[i].nama_barang}`,
-                                    qty_in_inventory:`${result1[i].qty_in_inventory==null?0:result1[i].qty_in_inventory}`,
+                                    unit_barang:`${result1[i].unit_barang}`,
                                     satuan_barang:`${result1[i].satuan_barang}`,
+                                    qty_in_inventory:`${result1[i].qty_in_inventory==null?0:result1[i].qty_in_inventory}`,
+                                    qty_req:`${result1[i].qty_req}`,
+                                    qty_req_toshow:`${qtyReqToShow}`,
                                     qty_send:`${result1[i].qty_send}`,
+                                    qty_send_toshow:`${qtySendToShow}`,
                                     kode_order_h:`${result1[i].kode_order_h}`
                                 }
                                 orderList.push(dataTopush2)
@@ -2612,10 +2681,10 @@ module.exports = {
             });
         },
         addFormDeliveryOrder:(req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_delivery_order) AS total
             FROM delivery_order
@@ -2812,10 +2881,12 @@ module.exports = {
                     x.kode_barang,
                     (SELECT nama_barang FROM master_barang WHERE kode_barang = x.kode_barang) 
                     as nama_barang,
-                    (SELECT satuan_barang FROM master_barang WHERE kode_barang = x.kode_barang) 
-                    as satuan_barang,
+                    (SELECT unit_barang FROM master_barang where kode_barang = x.kode_barang) as unit_barang,
+                    (SELECT satuan_barang FROM master_barang where kode_barang = x.kode_barang) as satuan_barang,
+                    (SELECT conversi_satuan FROM master_barang where kode_barang = x.kode_barang) as konversi_barang,
                     x.qty_req,
-                    x.qty_send
+                    x.qty_send,
+                    x.qty_receive
                     FROM order_d as x
                     WHERE
                     x.kode_order_h = "${result[0].kode_order_h}"`,(error1,result1,field1)=> {
@@ -2828,12 +2899,36 @@ module.exports = {
                             let panjangArray2=result1.length
                             let dataDeliveryOrderD=[]
                             for(ia=0;ia<panjangArray2;ia++){
+                                // batas
+                                let qtyReq =parseInt(result1[ia].qty_req)
+                                let convertionQtyReq =parseInt(result1[ia].konversi_barang)
+                                let qtyReqProcessA = Math.floor(qtyReq/convertionQtyReq)
+                                let qtyReqProcessB = qtyReq%convertionQtyReq
+                                let qtyReqToShow = qtyReqProcessA+"."+qtyReqProcessB
+                                // batas
+                                let qtySend =parseInt(result1[ia].qty_send)
+                                let convertionqtySend =parseInt(result1[ia].konversi_barang)
+                                let qtySendProcessA = Math.floor(qtySend/convertionqtySend)
+                                let qtySendProcessB = qtySend%convertionqtySend
+                                let qtySendToShow = qtySendProcessA+"."+qtySendProcessB
+                                // batas
+                                let qtyReceive =parseInt(result1[ia].qty_receive)
+                                let convertionqtyReceive =parseInt(result1[ia].konversi_barang)
+                                let qtyReceiveProcessA = Math.floor(qtyReceive/convertionqtyReceive)
+                                let qtyReceiveProcessB = qtyReceive%convertionqtyReceive
+                                let qtyReceiveToShow = qtyReceiveProcessA+"."+qtyReceiveProcessB
+                                // batas
                                 let dataTopush2 = {kode_order_d:`${result1[ia].kode_order_d}`,
                                 kode_barang:`${result1[ia].kode_barang}`,
                                 nama_barang:`${result1[ia].nama_barang}`,
+                                unit_barang:`${result1[ia].unit_barang}`,
                                 satuan_barang:`${result1[ia].satuan_barang}`,
                                 qty_req:`${result1[ia].qty_req}`,
-                                qty_send:`${result1[ia].qty_send}`}
+                                qty_req_toShow:`${qtyReqToShow}`,
+                                qty_send:`${result1[ia].qty_send}`,
+                                qty_send_toShow:`${qtySendToShow}`,
+                                qty_receive:`${result1[ia].qty_receive}`,
+                                qty_receive_toShow:`${qtyReceiveToShow}`}
                                 dataDeliveryOrderD.push(dataTopush2)
                             }
                             res.status(200).send({
@@ -2904,7 +2999,9 @@ module.exports = {
                     x.kode_barang ,
                     x.qty_send,
                     (SELECT nama_barang FROM master_barang where kode_barang = x.kode_barang) as nama_barang,
+                    (SELECT unit_barang FROM master_barang where kode_barang = x.kode_barang) as unit_barang,
                     (SELECT satuan_barang FROM master_barang where kode_barang = x.kode_barang) as satuan_barang,
+                    (SELECT conversi_satuan FROM master_barang where kode_barang = x.kode_barang) as konversi_barang,
                     x.kode_order_h
                     FROM
                     order_d as x
@@ -2919,11 +3016,20 @@ module.exports = {
                             let panjangArray2=result1.length
                             let dataPakaiProduksiD=[]
                             for(i1=0;i1<panjangArray2;i1++){
+                                // batas
+                                let qtySend =parseInt(result1[i1].qty_send)
+                                let convertionqtySend =parseInt(result1[i1].konversi_barang)
+                                let qtySendProcessA = Math.floor(qtySend/convertionqtySend)
+                                let qtySendProcessB = qtySend%convertionqtySend
+                                let qtySendToShow = qtySendProcessA+"."+qtySendProcessB
+                                // batas
                                 let dataTopush2 = {
                                     kode_order_d:`${result1[i1].kode_order_d}`,
                                     kode_barang:`${result1[i1].kode_barang}`,
                                     qty:`${result1[i1].qty_send}`,
+                                    qty_toShow:`${qtySendToShow}`,
                                     nama_barang:`${result1[i1].nama_barang}`,
+                                    unit_barang:`${result1[i1].unit_barang}`,
                                     satuan_barang:`${result1[i1].satuan_barang}`,
                                     kode_order_h:`${result1[i1].kode_order_h}`
                                 }
@@ -3230,10 +3336,10 @@ module.exports = {
             });
         },
         addFormProductionPlan:(req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_produksi_h) AS total
             FROM produksi_h
@@ -3494,7 +3600,7 @@ module.exports = {
             });
         },
         productionPlanCompletion:(req,res) =>{
-            let TANGGALCOMPLETE = moment().format('YYYY-MM-DD HH:mm:ss')
+            let TANGGALCOMPLETE = moment().tz("Asia/Jakarta").format('YYYY-MM-DD HH:mm:ss')
             let dataHasilProduksi = req.body.HASILPRODUKSI
             let sqlHasilProduksi = "INSERT INTO master_inventory (kode_inventory,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty) VALUES ?";
             let dataArrayHasilProduksi = [];
@@ -3676,10 +3782,10 @@ module.exports = {
             });
         },
         addFormTOCK:(req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_between_transfer) AS total
             FROM between_transfer
@@ -3898,10 +4004,10 @@ module.exports = {
             });
         },
         addFormTO:(req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_between_transfer) AS total
             FROM between_transfer
@@ -4324,7 +4430,7 @@ module.exports = {
                     });
                 }
                 else{
-                    const dateTIN = moment().format("YYYY-MM-DD HH:mm:ss")
+                    const dateTIN = moment().tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss")
                     let sql = "INSERT INTO master_inventory_outlet (kode_inventory_outlet,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty,id_outlet) VALUES ?";
                     let dataArray = [];
                     for (ia=0;ia<resultx.length;ia++) {
@@ -4382,7 +4488,7 @@ module.exports = {
                     });
                 }
                 else{
-                    const dateTIN = moment().format("YYYY-MM-DD HH:mm:ss")
+                    const dateTIN = moment().tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss")
                     let sql = "INSERT INTO master_inventory (kode_inventory,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty) VALUES ?";
                     let dataArray = [];
                     for (ia=0;ia<resultx.length;ia++) {
@@ -4583,10 +4689,10 @@ module.exports = {
             });
         },
         addSales:(req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(id_sales_h) AS total
             FROM sales_h
@@ -4802,10 +4908,10 @@ module.exports = {
             });
         },
         addMasterPLU: (req,res) =>{
-            let TANGGALBUAT = moment().format('YYYY-MM-DD HH:mm:ss')
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
+            let TANGGALBUAT = moment().tz("Asia/Jakarta").format('YYYY-MM-DD HH:mm:ss')
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
             connection.query(`
             SELECT COUNT(id_plu) AS total
             FROM master_plu_h
@@ -4969,10 +5075,10 @@ module.exports = {
             });
         },
         addDataPembelianCK: (req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_pembelian_h) AS total
             FROM pembelian_h
@@ -5047,10 +5153,10 @@ module.exports = {
             });
         },
         addDataPembelian: (req,res) =>{
-            let firstPrm = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let lastPrm = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss')
-            let year = moment().format("YYYY")
-            let month = moment().format("MM")
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
             connection.query(`
             SELECT COUNT(kode_pembelian_h) AS total
             FROM pembelian_h

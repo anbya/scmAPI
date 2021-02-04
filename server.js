@@ -5,6 +5,7 @@ const bodyParser = require("body-parser")
 const app = express()
 const cron = require('node-cron');
 const moment = require('moment-timezone')
+const connection = require("./config/centralkitchen")
 
 const Centralkitchen = require("./routes/centralkitchen")
 
@@ -19,6 +20,9 @@ app.get("/", function(req,res){
 })
 app.use("/centralkitchen", Centralkitchen);
 
+app.get("/testinsert", function(req,res){
+    res.send(`Hello World dari JAYGEEGROUP SCM API`);
+})
 
 app.listen(PORT, () => {
     console.log(`server running on port:${PORT}`);
