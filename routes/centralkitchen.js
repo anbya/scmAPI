@@ -143,6 +143,18 @@ const {
     getPembelianH,
     getDetailPembelian,
     // controller pembelian--
+    // controller return
+    getFromReturn,
+    addFormReturnCK,
+    getReturnData,
+    getReturnDetail,
+    // controller return--
+    // controller Waste
+    getFromWaste,
+    addFormWasteCK,
+    getWasteData,
+    getWasteDetail,
+    // controller Waste--
 
 } = require("../controllers/centralkitchen");
 
@@ -294,5 +306,17 @@ router.post("/addDataPembelian", addDataPembelian);
 router.post("/getPembelianH", getPembelianH);
 router.post("/getDetailPembelian", getDetailPembelian);
 // controller pembelian--
+// controller return
+router.get("/getFromReturn", getFromReturn);
+router.post("/addFormReturnCK", addFormReturnCK);
+router.get("/getReturnData", getReturnData);
+router.post("/getReturnDetail", getReturnDetail);
+// controller return--
+// controller Waste
+router.get("/getFromWaste", getFromWaste);
+router.post("/addFormWasteCK", addFormWasteCK);
+router.post("/getWasteData", getWasteData);
+router.post("/getWasteDetail", getWasteDetail);
+// controller Waste--
 
 module.exports = router;

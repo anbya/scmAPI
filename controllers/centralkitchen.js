@@ -1844,11 +1844,26 @@ module.exports = {
                 else{
                     let dataPOD=[]
                     for(i=0;i<result.length;i++){
+                        // batas
+                        let qty =parseInt(result[i].qty_)
+                        let convertionQty =parseInt(result[i].konversi_barang)
+                        let qtyProcessA = Math.floor(qty/convertionQty)
+                        let qtyProcessB = qty%convertionQty
+                        let qtyToShow = qtyProcessA+"."+qtyProcessB
+                        // batas
+                        let qtyReceive =parseInt(result[i].qty_receive)
+                        let convertionqtyReceive =parseInt(result[i].konversi_barang)
+                        let qtyReceiveProcessA = Math.floor(qtyReceive/convertionqtyReceive)
+                        let qtyReceiveProcessB = qtyReceive%convertionqtyReceive
+                        let qtyReceiveToShow = qtyReceiveProcessA+"."+qtyReceiveProcessB
+                        // batas
                         let dataTopush1 = {
                             kode_purchase_order_d:`${result[i].kode_purchase_order_d}`,
                             kode_barang:`${result[i].kode_barang}`,
                             qty:`${result[i].qty}`,
+                            qtyToShow:`${qtyToShow}`,
                             qty_receive:`${result[i].qty_receive}`,
+                            qtyReceiveToShow:`${qtyReceiveToShow}`,
                             unit_receive:0,
                             satua_receive:0,
                             harga:`${result[i].harga}`,
@@ -2455,6 +2470,7 @@ module.exports = {
                     const dateDOin = moment().tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss")
                     let sql = "INSERT INTO master_inventory_outlet (kode_inventory_outlet,kode_barang,tanggal_masuk,ref_masuk,type_masuk,harga,qty,id_outlet) VALUES ?";
                     let dataArray = [];
+                    let queriesUpdateOrderD = '';
                     for (ia=0;ia<resultx.length;ia++) {
                         let receivedetail =  req.body.RECEIVEDATA.filter(function(data) {
                             return data.kode_barang == resultx[ia].kode_barang;
@@ -2469,7 +2485,10 @@ module.exports = {
                             `${receivedetail[0].qty_receive}`,
                             `${req.body.PRMOUTLET}`
                         ]
-                        parseInt(receivedetail[0].qty_receive) > 0 && dataArray.push(dataToPush)
+                        if(parseInt(receivedetail[0].qty_receive) > 0 ){
+                            dataArray.push(dataToPush)
+                            queriesUpdateOrderD = queriesUpdateOrderD+`UPDATE order_d SET qty_receive = "${receivedetail[0].qty_receive}" WHERE kode_order_d = "${receivedetail[0].kode_order_d}";`
+                        }
                     }
                     connection.query(sql, [dataArray],(error1,result1,field1)=> {
                         if (error1){
@@ -2517,8 +2536,17 @@ module.exports = {
                                                     });
                                                 }
                                                 else{
-                                                    res.status(200).send({
-                                                        status:"01"
+                                                    connection.query(queriesUpdateOrderD,(error5,result5,field5)=> {
+                                                        if (error5){
+                                                            res.status(400).send({
+                                                                error5
+                                                            });
+                                                        }
+                                                        else{
+                                                            res.status(200).send({
+                                                                status:"01"
+                                                            });
+                                                        }
                                                     });
                                                 }
                                             });
@@ -5316,4 +5344,628 @@ module.exports = {
             });
         },
     // controller pembelian--
+    // controler return
+        getFromReturn:(req,res) =>{
+            connection.query(`
+            SELECT
+            x.kode_purchase_order_h,
+            x.nomor_po,
+            x.tanggal_buat,
+            x.tanggal_kirim,
+            x.tujuan_pengiriman,
+            x.tanggal_masuk_barang,
+            x.kode_vendor,
+            (SELECT nama_vendor FROM master_vendor WHERE kode_vendor = x.kode_vendor) as nama_vendor,
+            x.jumlah_pembelian,
+            x.create_user,
+            x.receive_user,
+            x.taxParameter
+            FROM purchase_order_h as x
+            WHERE (x.tanggal_masuk_barang != "") AND (x.tanggal_masuk_barang != "-") `,(error,result,field)=> {
+                if (error){
+                    res.status(400).send({
+                        error
+                    });
+                }
+                else{
+                    let panjangArray=result.length
+                    let dataToShow=[]
+                    for(i=0;i<panjangArray;i++){
+                        let dataTopush = {
+                            value:`${result[i].kode_purchase_order_h}`,
+                            label:`${result[i].nomor_po}-${result[i].nama_vendor}-${result[i].tanggal_masuk_barang}`
+                        }
+                        dataToShow.push(dataTopush)
+                    }
+                    res.status(200).send({
+                        dataToShow
+                    });
+                }
+            });
+        },
+        addFormReturnCK:(req,res) =>{
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
+            connection.query(`
+            SELECT COUNT(kode_return_h) AS total
+            FROM return_h
+            WHERE tanggal_return
+            BETWEEN "${firstPrm}"
+            AND "${lastPrm}"
+            `,(errorx,resultx,fieldx)=> {
+                if (errorx){
+                    console.log("1");
+                    res.status(400).send({
+                        errorx
+                    });
+                }
+                else{
+                    let totalData = parseInt(resultx[0].total)+1
+                    let totalDatastring = totalData.toString()
+                    let runData = totalDatastring.padStart(7, '0')
+                    let automateNumber = "RTRN"+"/"+year+"/"+month+"/"+runData
+                    connection.query(`
+                    INSERT INTO return_h 
+                    values
+                    (
+                        "",
+                        "${automateNumber}",
+                        "${req.body.TANGGALRETURN}",
+                        "${req.body.POCODE}",
+                        "${req.body.USER}",
+                        "${req.body.TANGGALRETURN}"
+                    )
+                    `,(error1,result1,field1)=> {
+                        if (error1){
+                            console.log("2");
+                            res.status(400).send({
+                                error1
+                            });
+                        }
+                        else{
+                            let kodeRTRN = result1.insertId
+                            let ADDDATA = req.body.ADDDATA
+                            let DataADDDATAlength = ADDDATA.length
+                            connection.query(`
+                            SELECT
+                            *
+                            FROM master_inventory
+                            WHERE
+                                qty > 0
+                            ORDER BY kode_inventory ASC
+                            `,(error4,result4,field4)=> {
+                                if (error4){
+                                    console.log("3");
+                                    res.status(400).send({
+                                        error4
+                                    });
+                                }
+                                else{
+                                    let dataresult4 = result4;
+                                    let panjangArray2=dataresult4.length
+                                    let masterInventory=[]
+                                    for(ix1=0;ix1<panjangArray2;ix1++){
+                                        let dataTopush2 = {
+                                            kode_inventory:`${dataresult4[ix1].kode_inventory}`,
+                                            kode_barang:`${dataresult4[ix1].kode_barang}`,
+                                            tanggal_masuk:`${dataresult4[ix1].tanggal_masuk}`,
+                                            ref_masuk:`${dataresult4[ix1].ref_masuk}`,
+                                            type_masuk:`${dataresult4[ix1].type_masuk}`,
+                                            harga:`${dataresult4[ix1].harga}`,
+                                            qty:`${dataresult4[ix1].qty}`
+                                        }
+                                        masterInventory.push(dataTopush2)
+                                    }
+                                    let newMasterInventory = []
+                                    for (i2=0;i2<DataADDDATAlength;i2++) {
+                                        let dataToshow =  masterInventory.filter(function(data) {
+                                            return data.kode_barang == ADDDATA[i2].kode_barang;
+                                        });
+                                        dataToshow.sort(function(a, b){
+                                            return a.kode_inventory-b.kode_inventory
+                                        })
+                                        let qty_to_cut = ADDDATA[i2].qtyReturn
+                                        kurangi_qty_to_cut = (qty) =>{
+                                            hasil_pengurangan = parseInt(qty_to_cut) - parseInt(qty)
+                                            qty_to_cut = hasil_pengurangan
+                                        }
+                                        for(i3=0;i3<dataToshow.length;i3++){
+                                            let new_qty = parseInt(dataToshow[i3].qty) > parseInt(qty_to_cut) ? parseInt(dataToshow[i3].qty) - parseInt(qty_to_cut) : 0
+                                            let prm_qty_void = parseInt(dataToshow[i3].qty) > parseInt(qty_to_cut) ? parseInt(qty_to_cut) : parseInt(dataToshow[i3].qty)
+                                            Object.assign(dataToshow[i3], {qty_void:prm_qty_void})
+                                            Object.assign(dataToshow[i3], {kodeRTRN:kodeRTRN})
+                                            new_qty > 0 ?kurangi_qty_to_cut(qty_to_cut):kurangi_qty_to_cut(dataToshow[i3].qty)
+                                            dataToshow[i3].qty = new_qty
+                                        }
+                                        for(ix2=0;ix2<dataToshow.length;ix2++){
+                                            let dataTopush3 = {
+                                                kode_inventory:`${dataToshow[ix2].kode_inventory}`,
+                                                kode_barang:`${dataToshow[ix2].kode_barang}`,
+                                                tanggal_masuk:`${dataToshow[ix2].tanggal_masuk}`,
+                                                ref_masuk:`${dataToshow[ix2].ref_masuk}`,
+                                                type_masuk:`${dataToshow[ix2].type_masuk}`,
+                                                harga:`${dataToshow[ix2].harga}`,
+                                                qty:`${dataToshow[ix2].qty}`,
+                                                qty_void:`${dataToshow[ix2].qty_void}`,
+                                                kodeRTRN:`${dataToshow[ix2].kodeRTRN}`
+                                            }
+                                            newMasterInventory.push(dataTopush3)
+                                        }
+                                        dataToshow = []
+                                    }
+                                    let queries = '';
+                                    for (i4=0;i4<newMasterInventory.length;i4++) {
+                                        queries = queries+`UPDATE master_inventory SET qty = "${newMasterInventory[i4].qty}" WHERE kode_inventory = "${parseInt(newMasterInventory[i4].kode_inventory)}";`
+                                    }
+                                    connection.query(queries,(error5,result5,field5)=> {
+                                        if (error5){
+                                            console.log("4");
+                                            res.status(400).send({
+                                                error5
+                                            });
+                                        }
+                                        else{
+                                            var sqlReturnBarang = "INSERT INTO return_d (kode_return_d,kode_inventory,kode_barang,qty,cost,kode_return_h) VALUES ?";
+                                            var dataArrayReturnBarang = [];
+                                            for (i1=0;i1<newMasterInventory.length;i1++) {
+                                                let dataToPush1 = [
+                                                    ``,
+                                                    `${newMasterInventory[i1].kode_inventory}`,
+                                                    `${newMasterInventory[i1].kode_barang}`,
+                                                    `${newMasterInventory[i1].qty_void}`,
+                                                    `${newMasterInventory[i1].harga}`,
+                                                    `${kodeRTRN}`
+                                                ]
+                                                parseInt(newMasterInventory[i1].qty_void) > 0 && dataArrayReturnBarang.push(dataToPush1)
+                                            }
+                                            connection.query(sqlReturnBarang, [dataArrayReturnBarang],(error3,result3,field3)=> {
+                                                if (error3){
+                                                    console.log("5");
+                                                    res.status(400).send({
+                                                        error3
+                                                    });
+                                                }
+                                                else{
+                                                    res.status(200).send({
+                                                        status:"01",
+                                                        kodeRTRN:`${kodeRTRN}`
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        },
+        getReturnData:(req,res) =>{
+            connection.query(`
+            SELECT
+            x.kode_return_h,
+            x.nomor_return,
+            x.tanggal_return,
+            x.kode_purchase_order_h
+            FROM 
+            return_h as x
+            ORDER BY x.tanggal_return DESC `,(error,result,field)=> {
+                if (error){
+                    res.status(400).send({
+                        error
+                    });
+                }
+                else{
+                    let panjangArray1=result.length
+                    let dataRTRN=[]
+                    for(i=0;i<panjangArray1;i++){
+                        let dataTopush1 = {
+                            kode_return_h:`${result[i].kode_return_h}`,
+                            nomor_return:`${result[i].nomor_return}`,
+                            tanggal_return:`${result[i].tanggal_return}`,
+                            kode_purchase_order_h:`${result[i].kode_purchase_order_h}`
+                        }
+                        dataRTRN.push(dataTopush1)
+                    }
+                    res.status(200).send({
+                        dataRTRN
+                    });
+                }
+            });
+        },
+        getReturnDetail:(req,res) =>{
+            connection.query(`
+            SELECT
+            x.kode_return_h,
+            x.nomor_return,
+            x.tanggal_return,
+            x.kode_purchase_order_h
+            FROM 
+            return_h as x
+            WHERE x.kode_return_h = "${req.body.kodeRTRN}"`,(error,result,field)=> {
+                if (error){
+                    res.status(400).send({
+                        error
+                    });
+                }
+                else{
+                    connection.query(`
+                    SELECT
+                    x.kode_return_d,
+                    x.kode_barang,
+                    (SELECT nama_barang FROM master_barang WHERE kode_barang = x.kode_barang) as nama_barang,
+                    (SELECT unit_barang FROM master_barang where kode_barang = x.kode_barang) as unit_barang,
+                    (SELECT satuan_barang FROM master_barang where kode_barang = x.kode_barang) as satuan_barang,
+                    (SELECT conversi_satuan FROM master_barang where kode_barang = x.kode_barang) as konversi_barang,
+                    x.qty,
+                    x.cost
+                    FROM return_d as x
+                    WHERE
+                    x.kode_return_h = "${req.body.kodeRTRN}"`,(error1,result1,field1)=> {
+                        if (error1){
+                            res.status(400).send({
+                                error1
+                            });
+                        }
+                        else{
+                            let panjangArray2=result1.length
+                            let dataRTRND=[]
+                            for(ia=0;ia<panjangArray2;ia++){
+                                // batas
+                                let qty =parseInt(result1[ia].qty)
+                                let convertionqty =parseInt(result1[ia].konversi_barang)
+                                let qtyProcessA = Math.floor(qty/convertionqty)
+                                let qtyProcessB = qty%convertionqty
+                                let qtyToShow = qtyProcessA+" / "+qtyProcessB
+                                // batas
+                                let dataTopush2 = {
+                                    kode_return_d:`${result1[ia].kode_return_d}`,
+                                    kode_barang:`${result1[ia].kode_barang}`,
+                                    nama_barang:`${result1[ia].nama_barang}`,
+                                    unit_barang:`${result1[ia].unit_barang}`,
+                                    satuan_barang:`${result1[ia].satuan_barang}`,
+                                    qty:`${result1[ia].qty_req}`,
+                                    qty_toShow:`${qtyToShow}`,
+                                    cost:`${result1[ia].cost}`
+                                }
+                                    dataRTRND.push(dataTopush2)
+                            }
+                            res.status(200).send({
+                                "kode_return_h": `${result[0].kode_return_h}`,
+                                "nomor_return": `${result[0].nomor_return}`,
+                                "tanggal_return": `${result[0].tanggal_return}`,
+                                "vendor_code": `${result[0].vendor_code}`,
+                                "vendor_name": `${result[0].vendor_name}`,
+                                dataRTRND:dataRTRND
+                            });
+                        }
+                    });
+                }
+            });
+        },
+    // controler return--
+    // controler return
+        getFromWaste:(req,res) =>{
+            connection.query(`
+            SELECT 
+            x.kode_barang,
+            (
+                SELECT SUM(qty) as qty_in_stock 
+                FROM 
+                master_inventory 
+                where 
+                kode_barang = x.kode_barang 
+            ) as qty_in_inventory,
+            x.nama_barang,
+            x.unit_barang,
+            x.satuan_barang,
+            x.conversi_satuan,
+            x.kode_vendor,
+            (SELECT nama_vendor FROM master_vendor where kode_vendor = x.kode_vendor) as vendor_name
+            FROM master_barang as x `,(error1,result1,field1)=> {
+                if (error1){
+                    res.status(400).send({
+                        error1
+                    });
+                }
+                else{
+                    let panjangArray2=result1.length
+                    let dataMasterBarang=[]
+                    for(i1=0;i1<panjangArray2;i1++){
+                        // batas
+                        let qtyInv =parseInt(result1[i1].qty_in_inventory==null?0:result1[i1].qty_in_inventory)
+                        let convertionQtyInv =parseInt(result1[i1].conversi_satuan)
+                        let qtyInvProcessA = Math.floor(qtyInv/convertionQtyInv)
+                        let qtyInvProcessB = qtyInv%convertionQtyInv
+                        let qtyInvToShow = qtyInvProcessA+"/"+qtyInvProcessB
+                        // batas
+                        let dataTopush2 = {
+                            value:`${result1[i1].kode_barang}`,
+                            label:`${result1[i1].kode_barang}-${result1[i1].nama_barang}`,
+                            satuan:`${result1[i1].satuan_barang}`,
+                            unit:`${result1[i1].unit_barang}`,
+                            konversi:`${result1[i1].conversi_satuan}`,
+                            kode_vendor:`${result1[i1].kode_vendor}`,
+                            qty_in_inventory:`${result1[i1].qty_in_inventory}`,
+                            qtyInvToShow:`${qtyInvToShow}`
+                        }
+                        dataMasterBarang.push(dataTopush2)
+                    }
+                    res.status(200).send({
+                        dataMasterBarang
+                    });
+                }
+            });
+        },
+        addFormWasteCK:(req,res) =>{
+            let firstPrm = moment().tz("Asia/Jakarta").startOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let lastPrm = moment().tz("Asia/Jakarta").endOf('month').format('YYYY-MM-DD HH:mm:ss')
+            let year = moment().tz("Asia/Jakarta").format("YYYY")
+            let month = moment().tz("Asia/Jakarta").format("MM")
+            connection.query(`
+            SELECT COUNT(kode_waste_h) AS total
+            FROM waste_h
+            WHERE tanggal_waste
+            BETWEEN "${firstPrm}"
+            AND "${lastPrm}"
+            `,(errorx,resultx,fieldx)=> {
+                if (errorx){
+                    console.log("1");
+                    res.status(400).send({
+                        errorx
+                    });
+                }
+                else{
+                    let totalData = parseInt(resultx[0].total)+1
+                    let totalDatastring = totalData.toString()
+                    let runData = totalDatastring.padStart(7, '0')
+                    let automateNumber = "WST"+"/"+year+"/"+month+"/"+runData
+                    connection.query(`
+                    INSERT INTO waste_h 
+                    values
+                    (
+                        "",
+                        "${automateNumber}",
+                        "${req.body.PRMOUTLET}",
+                        "${req.body.TANGGALWASTE}",
+                        "${req.body.USER}",
+                        "${req.body.TANGGALWASTE}"
+                    )
+                    `,(error1,result1,field1)=> {
+                        if (error1){
+                            console.log("2");
+                            res.status(400).send({
+                                error1
+                            });
+                        }
+                        else{
+                            let kodeWST = result1.insertId
+                            let ADDDATA = req.body.ADDDATA
+                            let DataADDDATAlength = ADDDATA.length
+                            connection.query(`
+                            SELECT
+                            *
+                            FROM master_inventory
+                            WHERE
+                                qty > 0
+                            ORDER BY kode_inventory ASC
+                            `,(error4,result4,field4)=> {
+                                if (error4){
+                                    console.log("3");
+                                    res.status(400).send({
+                                        error4
+                                    });
+                                }
+                                else{
+                                    let dataresult4 = result4;
+                                    let panjangArray2=dataresult4.length
+                                    let masterInventory=[]
+                                    for(ix1=0;ix1<panjangArray2;ix1++){
+                                        let dataTopush2 = {
+                                            kode_inventory:`${dataresult4[ix1].kode_inventory}`,
+                                            kode_barang:`${dataresult4[ix1].kode_barang}`,
+                                            tanggal_masuk:`${dataresult4[ix1].tanggal_masuk}`,
+                                            ref_masuk:`${dataresult4[ix1].ref_masuk}`,
+                                            type_masuk:`${dataresult4[ix1].type_masuk}`,
+                                            harga:`${dataresult4[ix1].harga}`,
+                                            qty:`${dataresult4[ix1].qty}`
+                                        }
+                                        masterInventory.push(dataTopush2)
+                                    }
+                                    let newMasterInventory = []
+                                    for (i2=0;i2<DataADDDATAlength;i2++) {
+                                        let dataToshow =  masterInventory.filter(function(data) {
+                                            return data.kode_barang == ADDDATA[i2].kode_barang;
+                                        });
+                                        dataToshow.sort(function(a, b){
+                                            return a.kode_inventory-b.kode_inventory
+                                        })
+                                        let qty_to_cut = ADDDATA[i2].qty
+                                        kurangi_qty_to_cut = (qty) =>{
+                                            hasil_pengurangan = parseInt(qty_to_cut) - parseInt(qty)
+                                            qty_to_cut = hasil_pengurangan
+                                        }
+                                        for(i3=0;i3<dataToshow.length;i3++){
+                                            let new_qty = parseInt(dataToshow[i3].qty) > parseInt(qty_to_cut) ? parseInt(dataToshow[i3].qty) - parseInt(qty_to_cut) : 0
+                                            let prm_qty_void = parseInt(dataToshow[i3].qty) > parseInt(qty_to_cut) ? parseInt(qty_to_cut) : parseInt(dataToshow[i3].qty)
+                                            Object.assign(dataToshow[i3], {qty_void:prm_qty_void})
+                                            Object.assign(dataToshow[i3], {kodeWST:kodeWST})
+                                            new_qty > 0 ?kurangi_qty_to_cut(qty_to_cut):kurangi_qty_to_cut(dataToshow[i3].qty)
+                                            dataToshow[i3].qty = new_qty
+                                        }
+                                        for(ix2=0;ix2<dataToshow.length;ix2++){
+                                            let dataTopush3 = {
+                                                kode_inventory:`${dataToshow[ix2].kode_inventory}`,
+                                                kode_barang:`${dataToshow[ix2].kode_barang}`,
+                                                tanggal_masuk:`${dataToshow[ix2].tanggal_masuk}`,
+                                                ref_masuk:`${dataToshow[ix2].ref_masuk}`,
+                                                type_masuk:`${dataToshow[ix2].type_masuk}`,
+                                                harga:`${dataToshow[ix2].harga}`,
+                                                qty:`${dataToshow[ix2].qty}`,
+                                                qty_void:`${dataToshow[ix2].qty_void}`,
+                                                kodeWST:`${dataToshow[ix2].kodeWST}`
+                                            }
+                                            newMasterInventory.push(dataTopush3)
+                                        }
+                                        dataToshow = []
+                                    }
+                                    let queries = '';
+                                    for (i4=0;i4<newMasterInventory.length;i4++) {
+                                        queries = queries+`UPDATE master_inventory SET qty = "${newMasterInventory[i4].qty}" WHERE kode_inventory = "${parseInt(newMasterInventory[i4].kode_inventory)}";`
+                                    }
+                                    connection.query(queries,(error5,result5,field5)=> {
+                                        if (error5){
+                                            console.log("4");
+                                            res.status(400).send({
+                                                error5
+                                            });
+                                        }
+                                        else{
+                                            var sqlWasteBarang = "INSERT INTO waste_d (kode_waste_d,kode_inventory,kode_barang,qty,cost,kode_waste_h) VALUES ?";
+                                            var dataArrayWasteBarang = [];
+                                            for (i1=0;i1<newMasterInventory.length;i1++) {
+                                                let dataToPush1 = [
+                                                    ``,
+                                                    `${newMasterInventory[i1].kode_inventory}`,
+                                                    `${newMasterInventory[i1].kode_barang}`,
+                                                    `${newMasterInventory[i1].qty_void}`,
+                                                    `${newMasterInventory[i1].harga}`,
+                                                    `${kodeWST}`
+                                                ]
+                                                parseInt(newMasterInventory[i1].qty_void) > 0 && dataArrayWasteBarang.push(dataToPush1)
+                                            }
+                                            connection.query(sqlWasteBarang, [dataArrayWasteBarang],(error3,result3,field3)=> {
+                                                if (error3){
+                                                    console.log("5");
+                                                    res.status(400).send({
+                                                        error3
+                                                    });
+                                                }
+                                                else{
+                                                    res.status(200).send({
+                                                        status:"01",
+                                                        kodeWST:`${kodeWST}`
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        },
+        getWasteData:(req,res) =>{
+            connection.query(`
+            SELECT
+            x.kode_waste_h,
+            x.nomor_waste,
+            x.tanggal_waste,
+            x.id_outlet,
+            (SELECT nama_outlet FROM outlet where id_outlet = x.id_outlet) as nama_outlet 
+            FROM 
+            waste_h as x
+            WHERE x.id_outlet = "${req.body.PRMOUTLET}"
+            ORDER BY x.tanggal_waste DESC `,(error,result,field)=> {
+                if (error){
+                    res.status(400).send({
+                        error
+                    });
+                }
+                else{
+                    let panjangArray1=result.length
+                    let dataWST=[]
+                    for(i=0;i<panjangArray1;i++){
+                        let dataTopush1 = {
+                            kode_waste_h:`${result[i].kode_waste_h}`,
+                            nomor_waste:`${result[i].nomor_waste}`,
+                            tanggal_waste:`${result[i].tanggal_waste}`,
+                            id_outlet:`${result[i].id_outlet}`,
+                            nama_outlet:`${result[i].nama_outlet}`
+                        }
+                        dataWST.push(dataTopush1)
+                    }
+                    res.status(200).send({
+                        dataWST
+                    });
+                }
+            });
+        },
+        getWasteDetail:(req,res) =>{
+            connection.query(`
+            SELECT
+            x.kode_waste_h,
+            x.nomor_waste,
+            x.tanggal_waste,
+            x.id_outlet,
+            (SELECT nama_outlet FROM outlet where id_outlet = x.id_outlet) as nama_outlet 
+            FROM 
+            waste_h as x
+            WHERE x.kode_waste_h = "${req.body.kodeWST}"`,(error,result,field)=> {
+                if (error){
+                    res.status(400).send({
+                        error
+                    });
+                }
+                else{
+                    connection.query(`
+                    SELECT
+                    x.kode_waste_d,
+                    x.kode_barang,
+                    (SELECT nama_barang FROM master_barang WHERE kode_barang = x.kode_barang) as nama_barang,
+                    (SELECT unit_barang FROM master_barang where kode_barang = x.kode_barang) as unit_barang,
+                    (SELECT satuan_barang FROM master_barang where kode_barang = x.kode_barang) as satuan_barang,
+                    (SELECT conversi_satuan FROM master_barang where kode_barang = x.kode_barang) as konversi_barang,
+                    x.qty,
+                    x.cost
+                    FROM waste_d as x
+                    WHERE
+                    x.kode_waste_h = "${req.body.kodeWST}"`,(error1,result1,field1)=> {
+                        if (error1){
+                            res.status(400).send({
+                                error1
+                            });
+                        }
+                        else{
+                            let panjangArray2=result1.length
+                            let dataWSTD=[]
+                            for(ia=0;ia<panjangArray2;ia++){
+                                // batas
+                                let qty =parseInt(result1[ia].qty)
+                                let convertionqty =parseInt(result1[ia].konversi_barang)
+                                let qtyProcessA = Math.floor(qty/convertionqty)
+                                let qtyProcessB = qty%convertionqty
+                                let qtyToShow = qtyProcessA+" / "+qtyProcessB
+                                // batas
+                                let dataTopush2 = {
+                                    kode_return_d:`${result1[ia].kode_return_d}`,
+                                    kode_barang:`${result1[ia].kode_barang}`,
+                                    nama_barang:`${result1[ia].nama_barang}`,
+                                    unit_barang:`${result1[ia].unit_barang}`,
+                                    satuan_barang:`${result1[ia].satuan_barang}`,
+                                    qty:`${result1[ia].qty_req}`,
+                                    qty_toShow:`${qtyToShow}`,
+                                    cost:`${result1[ia].cost}`
+                                }
+                                    dataWSTD.push(dataTopush2)
+                            }
+                            res.status(200).send({
+                                "kode_waste_h": `${result[0].kode_waste_h}`,
+                                "nomor_waste": `${result[0].nomor_waste}`,
+                                "tanggal_waste": `${result[0].tanggal_waste}`,
+                                "id_outlet": `${result[0].id_outlet}`,
+                                "nama_outlet": `${result[0].nama_outlet}`,
+                                dataWSTD:dataWSTD
+                            });
+                        }
+                    });
+                }
+            });
+        },
+// controler return--
 };
